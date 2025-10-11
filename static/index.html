@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Summarizer</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 800px;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(15px);
+      border-radius: 16px;
+      padding: 2rem;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 1.5rem;
+      background: linear-gradient(to right, #ff6ec4, #7873f5);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    textarea, input[type="file"], select, label {
+      width: 100%;
+      margin-top: 1rem;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 150px;
+      padding: 1rem;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+    }
+
+    button {
+      margin-top: 1.5rem;
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #ff6ec4, #7873f5);
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.3s ease;
+    }
+
+    button:hover {
+      opacity: 0.85;
+    }
+
+    .result {
+      margin-top: 2rem;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 1rem;
+      border-radius: 8px;
+      white-space: pre-wrap;
+      position: relative;
+      overflow-x: auto;
+    }
+
+    .result pre {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      overflow-x: auto;
+      max-width: 100%;
+    }
+
+    .copy-btn {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      background: #ffffff22;
+      border: none;
+      padding: 0.3rem 0.6rem;
+      border-radius: 5px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+
+    .spinner {
+      display: none;
+      margin: 1rem auto;
+      border: 4px solid #ffffff33;
+      border-top: 4px solid #ff6ec4;
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @media (max-width: 600px) {
+      h1 {
+        font-size: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔎 AI Content Summarizer</h1>
+
+    <form id="textForm">
+      <label for="text">Paste text to summarize:</label>
+      <textarea id="text" name="text" required></textarea>
+
+      <label for="length">Summary Length:</label>
+      <select id="length" name="length">
+        <option value="short">Short</option>
+        <option value="medium" selected>Medium</option>
+        <option value="detailed">Detailed</option>
+      </select>
+
+      <label>
+        <input type="checkbox" id="actionItems" name="action_items" />
+        Include Action Items
+      </label>
+
+      <button type="submit">Summarize Text</button>
+    </form>
+
+    <form id="uploadForm" enctype="multipart/form-data">
+      <label for="file">Upload File (PDF, DOCX, TXT):</label>
+      <input type="file" id="file" name="file" accept=".pdf,.docx,.txt" required />
+
+      <label for="uploadLength">Summary Length:</label>
+      <select id="uploadLength" name="length">
+        <option value="short">Short</option>
+        <option value="medium" selected>Medium</option>
+        <option value="detailed">Detailed</option>
+      </select>
+
+      <label>
+        <input type="checkbox" id="uploadActionItems" name="action_items" />
+        Include Action Items
+      </label>
+
+      <button type="submit">Summarize File</button>
+    </form>
+
+    <div class="spinner" id="spinner"></div>
+
+    <div class="result" id="result" style="display: none;">
+      <button class="copy-btn" onclick="copyToClipboard()">Copy</button>
+      <pre id="outputText"></pre>
+    </div>
+  </div>
+
+  <script>
+    const textForm = document.getElementById("textForm");
+    const uploadForm = document.getElementById("uploadForm");
+    const spinner = document.getElementById("spinner");
+    const resultBox = document.getElementById("result");
+    const outputText = document.getElementById("outputText");
+
+    textForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      showSpinner(true);
+      resultBox.style.display = "none";
+
+      const formData = new FormData(textForm);
+      const data = new URLSearchParams(formData);
+
+      const res = await fetch("/summarize", {
+        method: "POST",
+        body: data,
+      });
+
+      const json = await res.json();
+      showResult(json.summary);
+    });
+
+    uploadForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      showSpinner(true);
+      resultBox.style.display = "none";
+
+      const formData = new FormData(uploadForm);
+      const res = await fetch("/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const json = await res.json();
+      showResult(json.summary);
+    });
+
+    function showSpinner(show) {
+      spinner.style.display = show ? "block" : "none";
+    }
+
+    function showResult(text) {
+      showSpinner(false);
+      outputText.textContent = text;
+      resultBox.style.display = "block";
+    }
+
+    function copyToClipboard() {
+      const text = outputText.textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        alert("Summary copied to clipboard!");
+      });
+    }
+  </script>
+</body>
+</html>
